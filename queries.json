@@ -1,0 +1,9 @@
+[
+  {
+    "id": 1,
+    "name": "Test User",
+    "text": "Test query from browser",
+    "time": "2026-05-21 00:51:04",
+    "ip": "127.0.0.1"
+  }
+]

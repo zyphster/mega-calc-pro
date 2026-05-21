@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>📋 Admin - Query Logs</title>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{
+  min-height:100vh;background:#0a0a12;font-family:'Nunito',sans-serif;
+  padding:30px;color:#e6f1ff;
+}
+.bg{position:fixed;inset:0;z-index:-1;background:linear-gradient(135deg,#0a0a12,#0d0221,#1a0533,#0a0a12);background-size:400% 400%;animation:shift 8s ease infinite}
+@keyframes shift{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+h1{font-size:24px;font-weight:800;margin-bottom:4px}
+.sub{color:rgba(0,255,136,.35);font-size:13px;margin-bottom:20px;font-family:'Fira Code',monospace}
+.stats{display:flex;gap:16px;margin-bottom:24px;flex-wrap:wrap}
+.stat{background:rgba(10,10,18,0.6);border:1px solid rgba(0,255,136,.08);border-radius:16px;padding:16px 24px;min-width:120px;text-align:center}
+.stat .num{font-size:28px;font-weight:800;color:#00ff88}
+.stat .lbl{font-size:10px;color:rgba(0,255,136,.3);font-family:'Fira Code',monospace;margin-top:2px;letter-spacing:.5px}
+.queries{display:flex;flex-direction:column;gap:8px}
+.q-item{
+  background:rgba(10,10,18,0.6);border:1px solid rgba(0,255,136,.06);border-radius:14px;
+  padding:16px 20px;display:flex;align-items:flex-start;gap:14px;
+  animation:slideIn .3s ease;transition:all .2s;
+}
+.q-item:hover{border-color:rgba(0,255,136,.15);background:rgba(10,10,18,0.8)}
+.q-id{font-family:'Fira Code',monospace;font-size:12px;color:rgba(0,255,136,.3);min-width:32px;padding-top:2px}
+.q-text{flex:1;font-size:14px;font-weight:600;color:rgba(0,255,136,.7);line-height:1.5}
+.q-meta{font-family:'Fira Code',monospace;font-size:10px;color:rgba(0,255,136,.2);text-align:right;white-space:nowrap;display:flex;flex-direction:column;gap:2px;align-items:flex-end}
+.q-meta .ip{color:rgba(255,183,197,.3)}
+.empty{text-align:center;padding:60px 20px;color:rgba(0,255,136,.1);font-family:'Fira Code',monospace}
+.empty .big{font-size:48px;display:block;margin-bottom:12px}
+@keyframes slideIn{0%{transform:translateY(-8px);opacity:0}100%{transform:translateY(0);opacity:1}}
+.refresh-btn{
+  padding:8px 18px;border:none;border-radius:10px;cursor:pointer;
+  background:rgba(0,255,136,.08);color:#00ff88;font-weight:700;font-size:12px;
+  font-family:'Nunito',sans-serif;transition:all .2s;margin-left:12px;
+}
+.refresh-btn:hover{background:rgba(0,255,136,.15)}
+.clear-btn{
+  padding:8px 18px;border:none;border-radius:10px;cursor:pointer;
+  background:rgba(255,107,138,.08);color:#ff6b8a;font-weight:700;font-size:12px;
+  font-family:'Nunito',sans-serif;transition:all .2s;margin-left:6px;
+}
+.clear-btn:hover{background:rgba(255,107,138,.15)}
+.status-badge{display:inline-block;padding:2px 10px;border-radius:10px;font-size:10px;font-weight:600;margin-top:2px}
+.status-badge.online{background:rgba(0,255,136,.1);color:#00ff88}
+.status-badge.offline{background:rgba(255,107,138,.1);color:#ff6b8a}
+@media(max-width:600px){
+  body{padding:16px}
+  .q-item{flex-direction:column;gap:6px}
+  .q-meta{flex-direction:row;gap:8px;align-items:center}
+}
+</style>
+</head>
+<body>
+<div class="bg"></div>
+<div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px">
+  <div>
+    <h1>📋 Query Logs</h1>
+    <div class="sub">// real-time query monitor</div>
+  </div>
+  <div style="display:flex;gap:6px;align-items:center">
+    <span id="statusBadge" class="status-badge online">● Live</span>
+    <button class="refresh-btn" onclick="fetchQueries()">🔄 Refresh</button>
+    <button class="clear-btn" onclick="clearQueries()">🗑 Clear All</button>
+  </div>
+</div>
+<div class="stats">
+  <div class="stat"><div class="num" id="totalCount">0</div><div class="lbl">Total Queries</div></div>
+  <div class="stat"><div class="num" id="todayCount">0</div><div class="lbl">Today</div></div>
+</div>
+<div class="queries" id="queriesList">
+  <div class="empty"><span class="big">💤</span>No queries yet<br>Waiting for incoming messages...</div>
+</div>
+
+<script>
+async function fetchQueries(){
+  try{
+    const r=await fetch('/api/queries');
+    const queries=await r.json();
+    renderQueries(queries);
+    document.getElementById('statusBadge').textContent='● Live';
+    document.getElementById('statusBadge').className='status-badge online';
+  }catch(e){
+    document.getElementById('statusBadge').textContent='● Offline';
+    document.getElementById('statusBadge').className='status-badge offline';
+  }
+}
+
+function renderQueries(queries){
+  const list=document.getElementById('queriesList');
+  const total=document.getElementById('totalCount');
+  const today=document.getElementById('todayCount');
+  total.textContent=queries.length;
+  const todayStr=new Date().toISOString().slice(0,10);
+  today.textContent=queries.filter(q=>q.time&&q.time.slice(0,10)===todayStr).length;
+
+  if(!queries.length){
+    list.innerHTML='<div class="empty"><span class="big">💤</span>No queries yet</div>';
+    return;
+  }
+  list.innerHTML=queries.slice().reverse().map(q=>`
+    <div class="q-item">
+      <div class="q-id">#${q.id}</div>
+      <div class="q-text">${escapeHtml(q.text)}</div>
+      <div class="q-meta">
+        <span>${q.time||'?'}</span>
+        <span class="ip">${q.ip||'?'}</span>
+      </div>
+    </div>
+  `).join('');
+}
+
+function escapeHtml(t){const d=document.createElement('div');d.textContent=t;return d.innerHTML}
+
+async function clearQueries(){
+  if(!confirm('Delete all queries?'))return;
+  try{
+    await fetch('/api/clear',{method:'POST'});
+    fetchQueries();
+  }catch(e){}
+}
+
+fetchQueries();
+setInterval(fetchQueries,5000); // auto-refresh every 5s
+</script>
+</body>
+</html>

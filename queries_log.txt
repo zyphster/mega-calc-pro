@@ -1,0 +1,2 @@
+[2026-05-21 00:46:34] Name:Rahul | Query:Mujhe calculator chahiye wapas | IP:::1
+[2026-05-21 00:51:04] Name:Test User | Query:Test query from browser | IP:127.0.0.1
